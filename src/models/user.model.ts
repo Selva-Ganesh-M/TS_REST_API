@@ -1,4 +1,4 @@
-import mongoose, { StringSchemaDefinition, Types } from "mongoose";
+import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
 //INTERFACE
@@ -6,8 +6,6 @@ export interface IUserDoc extends mongoose.Document {
   name: string;
   email: string;
   password: string;
-  createdAt: Date;
-  updatedAt: Date;
   comparePassword: (candidatePassword: string) => Promise<Boolean>;
 }
 
@@ -35,7 +33,10 @@ const userSchema = new mongoose.Schema(
 
 // PRE FUNCTION
 userSchema.pre("save", async (next) => {
-  const user = this as unknown as IUserDoc;
+  let user = this as unknown as IUserDoc;
+  if (!user) {
+    next();
+  }
   {
     /* 
     cause
@@ -43,7 +44,7 @@ userSchema.pre("save", async (next) => {
     "this as unknown as IUserDoc" works cause the unknown type element can be of any of the Types.
     */
   }
-  if (!user.isModified) {
+  if (!user.isModified("password")) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);
@@ -54,7 +55,7 @@ userSchema.pre("save", async (next) => {
 
 // USER METHODS
 userSchema.methods.comparePassword = async (candidatePassword: string) => {
-  const user = this as unknown as IUserDoc;
+  let user = this as unknown as IUserDoc;
   return await bcrypt
     .compare(candidatePassword, user.password)
     .catch((e) => false);
